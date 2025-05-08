@@ -92,13 +92,9 @@ ax.text(0.5, 0.5, "OS CAPITAL", ha='center', va='center', transform=ax.transAxes
 # Adicionar texto de rodapé
 ax.text(0.5, -0.00002, "Elaborado por: OS CAPITAL", ha='center', va='center', transform=fig.transFigure)
 
-# Salvar gráfico
-output_path = os.path.normpath(r"C:/Users/Cliente HT/Desktop/programas python/SIMULADOR/investimentos_dashboard.png")
-plt.savefig(output_path, bbox_inches='tight')
-
-# Carregar as duas logos
-logo_ibkr_path = os.path.normpath(r"C:/Users/Cliente HT/Desktop/programas python/SIMULADOR/IB_logo_stacked.jpg")  # Logo da Interactive Brokers
-logo_os_path = os.path.normpath(r"C:/Users/Cliente HT/Desktop/programas python/SIMULADOR/logo da oscapital.jpeg")  # Logo da OS CAPITAL
+# Carregar as duas logos com caminhos relativos
+logo_ibkr_path = os.path.normpath("IB_logo_stacked.jpg")  # Logo da Interactive Brokers
+logo_os_path = os.path.normpath("logo da oscapital.jpeg")  # Logo da OS CAPITAL
 
 # Criar layout com colunas para posicionar as logos na lateral direita
 col1, col2 = st.columns([4, 1])
@@ -115,7 +111,7 @@ with col1:
         """,
         unsafe_allow_html=True
     )
-    # Exibir o gráfico
+    # Exibir o gráfico diretamente
     st.pyplot(fig)
     plt.close()
 
