@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd
 import os
 import base64
+import time
+import yfinance as yf
 
 # Configuração da página
 st.set_page_config(page_title="Simulador de Investimentos", layout="wide")
@@ -96,7 +98,7 @@ ax.text(0.5, -0.00002, "Elaborado por: OS CAPITAL", ha='center', va='center', tr
 logo_ibkr_path = os.path.normpath("IB_logo_stacked.jpg")  # Logo da Interactive Brokers
 logo_os_path = os.path.normpath("logo da oscapital.jpeg")  # Logo da OS CAPITAL
 
-# Criar layout com colunas para posicionar as logos na lateral direita
+# Criar layout com colunas para posicionar as logos na lateral direita (mantido [4, 1])
 col1, col2 = st.columns([4, 1])
 with col1:
     # Adicionar título e subtítulo acima do gráfico
@@ -132,7 +134,7 @@ with col2:
             st.markdown(
                 f"""
                 <a href="https://www.oscapitaloficial.com.br" target="_blank">
-                    <img src="data:image/jpeg;base64,{logo_os_base64}" alt="OS CAPITAL Logo" style="width: 200px; margin: 5px 0;">
+                    <img src="data:image/jpeg;base64,{logo_os_base64}" alt="OS CAPITAL Logo" style="width: 300px; margin: 5px 0;">
                 </a>
                 <p style="color: #FFFFFF; font-size: 12px; margin: 5px 0; text-align: center;">
                     VISITE NOSSO SITE
@@ -151,7 +153,7 @@ with col2:
             st.markdown(
                 f"""
                 <a href="https://ibkr.com/referral/edgleison239" target="_blank">
-                    <img src="data:image/jpeg;base64,{logo_ibkr_base64}" alt="IBKR Logo" style="width: 200px; margin: 5px 0;">
+                    <img src="data:image/jpeg;base64,{logo_ibkr_base64}" alt="IBKR Logo" style="width: 300px; margin: 5px 0;">
                 </a>
                 <p style="color: #FFFFFF; font-size: 12px; margin: 5px 0; line-height: 1.2; text-align: center;">
                     <a href="https://ibkr.com/referral/edgleison239" target="_blank" style="color: #FFFFFF; font-weight: bold; text-decoration: none;">
@@ -166,17 +168,91 @@ with col2:
     else:
         st.warning("Logo da Interactive Brokers não encontrada: " + logo_ibkr_path)
 
-# Exibir tabela
-st.header("Resultados Anuais")
-st.dataframe(df.style.format({
-    "Selic (R$)": "R${:,.2f}",
-    "Imóvel Fixo (R$)": "R${:,.2f}",
-    "Imóvel Valorizado (R$)": "R${:,.2f}"
-}), use_container_width=True)
+    # Adicionar um pequeno espaçamento antes do painel de cotações
+    st.markdown(
+        """
+        <div style="margin-top: 10px;"></div>
+        """,
+        unsafe_allow_html=True
+    )
 
-# Instruções
-st.markdown("""
-**Instruções:**
-- Ajuste os parâmetros na barra lateral para simular diferentes cenários.
-- O gráfico e a tabela são atualizados automaticamente.
-""")
+    # Adicionar painel de cotações em tempo real, usando yfinance para USD/BRL e EUR/BRL
+    assets = {
+        "USD/BRL": ("FX", "BRL=X"),
+        "EUR/BRL": ("FX", "EURBRL=X")
+    }
+    quotes_data = []
+    for name, (type_, symbol) in assets.items():
+        try:
+            # Usar yfinance para pares de moedas
+            data = yf.download(symbol, period="1d", interval="1m")
+            if not data.empty:
+                latest_price = data['Close'].iloc[-1]
+                price_display = f"{latest_price:.2f}"
+            else:
+                price_display = "N/A"
+            time.sleep(10)  # Atraso para evitar limite de taxa
+        except Exception as e:
+            price_display = f"Erro: {str(e)}"
+        quotes_data.append({"Ativo": name, "Preço": price_display})
+
+    # Criar DataFrame e exibir como tabela estilizada
+    quotes_df = pd.DataFrame(quotes_data)
+    st.dataframe(
+        quotes_df,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Ativo": st.column_config.TextColumn(width=120),
+            "Preço": st.column_config.TextColumn(width=120)
+        },
+        height=len(quotes_data) * 35 + 35  # Ajusta a altura com base no número de linhas
+    )
+
+    # Aplicar estilo CSS personalizado à tabela
+    st.markdown(
+        """
+        <style>
+        .stDataFrame {
+            font-size: 12px;
+            color: #FFFFFF;
+            background-color: #0C1C16;
+            overflow-x: visible !important;  /* Permite visibilidade de todas as colunas */
+            min-width: 100% !important;  /* Garante que a tabela use todo o espaço */
+        }
+        .stDataFrame th {
+            background-color: #1A3C34 !important;
+            color: #FFFFFF !important;
+            font-size: 12px !important;
+            border: none !important;
+            padding: 2px !important;  /* Reduz padding */
+        }
+        .stDataFrame td {
+            background-color: #0C1C16 !important;
+            color: #FFFFFF !important;
+            border: 1px solid #1A3C34 !important;
+            padding: 2px !important;  /* Reduz padding */
+        }
+        .stDataFrame tr:hover {
+            background-color: #1A3C34 !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+# Exibir tabela na coluna principal
+with col1:
+    st.header("Resultados Anuais")
+    st.dataframe(df.style.format({
+        "Selic (R$)": "R${:,.2f}",
+        "Imóvel Fixo (R$)": "R${:,.2f}",
+        "Imóvel Valorizado (R$)": "R${:,.2f}"
+    }), use_container_width=True)
+
+    # Instruções
+    st.markdown("""
+    **Instruções:**
+    - Ajuste os parâmetros na barra lateral para simular diferentes cenários.
+    - O gráfico e a tabela são atualizados automaticamente.
+    """)
