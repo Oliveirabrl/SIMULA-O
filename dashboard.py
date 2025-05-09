@@ -203,8 +203,8 @@ with col2:
         use_container_width=True,
         hide_index=True,
         column_config={
-            "Ativo": st.column_config.TextColumn(width=120),
-            "Preço": st.column_config.TextColumn(width=120)
+            "Ativo": st.column_config.TextColumn(width=80),
+            "Preço": st.column_config.TextColumn(width=100)
         },
         height=len(quotes_data) * 35 + 35  # Ajusta a altura com base no número de linhas
     )
@@ -219,6 +219,15 @@ with col2:
             background-color: #0C1C16;
             overflow-x: visible !important;  /* Permite visibilidade de todas as colunas */
             min-width: 100% !important;  /* Garante que a tabela use todo o espaço */
+        }
+        .stDataFrame th, .stDataFrame td {
+            max-width: 100px !important;  /* Limita a largura máxima das colunas */
+        }
+        .stDataFrame th:nth-child(1), .stDataFrame td:nth-child(1) {
+            max-width: 80px !important;  /* Limita a largura da coluna Ativo */
+        }
+        .stDataFrame th:nth-child(2), .stDataFrame td:nth-child(2) {
+            max-width: 100px !important;  /* Define a largura da coluna Preço */
         }
         .stDataFrame th {
             background-color: #1A3C34 !important;
