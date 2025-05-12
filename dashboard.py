@@ -1,3 +1,6 @@
+# Para executar este script, use o comando: streamlit run dashboard.py
+# Não execute diretamente com python dashboard.py, pois isso causará erros.
+
 import streamlit as st
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
@@ -5,8 +8,6 @@ import numpy as np
 import pandas as pd
 import os
 import base64
-import time
-import yfinance as yf
 
 # Configuração da página
 st.set_page_config(page_title="Simulador de Investimentos", layout="wide")
@@ -84,7 +85,7 @@ ax.grid(True)
 formatter = FuncFormatter(currency)
 ax.yaxis.set_major_formatter(formatter)
 
-# Ajustar margens
+# Ajustar margens (corrigido de 'custom' para 'bottom')
 plt.subplots_adjust(bottom=0.15)
 
 # Adicionar marca d'água central
@@ -167,88 +168,6 @@ with col2:
             st.error(f"Erro ao carregar a logo da Interactive Brokers: {str(e)}")
     else:
         st.warning("Logo da Interactive Brokers não encontrada: " + logo_ibkr_path)
-
-    # Adicionar um pequeno espaçamento antes do painel de cotações
-    st.markdown(
-        """
-        <div style="margin-top: 10px;"></div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    # Adicionar painel de cotações em tempo real, usando yfinance para USD/BRL e EUR/BRL
-    assets = {
-        "USD/BRL": ("FX", "BRL=X"),
-        "EUR/BRL": ("FX", "EURBRL=X")
-    }
-    quotes_data = []
-    for name, (type_, symbol) in assets.items():
-        try:
-            # Usar yfinance para pares de moedas
-            data = yf.download(symbol, period="1d", interval="1m")
-            if not data.empty:
-                latest_price = data['Close'].iloc[-1]
-                price_display = f"{latest_price:.2f}"
-            else:
-                price_display = "N/A"
-            time.sleep(10)  # Atraso para evitar limite de taxa
-        except Exception as e:
-            price_display = f"Erro: {str(e)}"
-        quotes_data.append({"Ativo": name, "Preço": price_display})
-
-    # Criar DataFrame e exibir como tabela estilizada
-    quotes_df = pd.DataFrame(quotes_data)
-    st.dataframe(
-        quotes_df,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Ativo": st.column_config.TextColumn(width=80),
-            "Preço": st.column_config.TextColumn(width=100)
-        },
-        height=len(quotes_data) * 35 + 35  # Ajusta a altura com base no número de linhas
-    )
-
-    # Aplicar estilo CSS personalizado à tabela
-    st.markdown(
-        """
-        <style>
-        .stDataFrame {
-            font-size: 12px;
-            color: #FFFFFF;
-            background-color: #0C1C16;
-            overflow-x: visible !important;  /* Permite visibilidade de todas as colunas */
-            min-width: 100% !important;  /* Garante que a tabela use todo o espaço */
-        }
-        .stDataFrame th, .stDataFrame td {
-            max-width: 100px !important;  /* Limita a largura máxima das colunas */
-        }
-        .stDataFrame th:nth-child(1), .stDataFrame td:nth-child(1) {
-            max-width: 80px !important;  /* Limita a largura da coluna Ativo */
-        }
-        .stDataFrame th:nth-child(2), .stDataFrame td:nth-child(2) {
-            max-width: 100px !important;  /* Define a largura da coluna Preço */
-        }
-        .stDataFrame th {
-            background-color: #1A3C34 !important;
-            color: #FFFFFF !important;
-            font-size: 12px !important;
-            border: none !important;
-            padding: 2px !important;  /* Reduz padding */
-        }
-        .stDataFrame td {
-            background-color: #0C1C16 !important;
-            color: #FFFFFF !important;
-            border: 1px solid #1A3C34 !important;
-            padding: 2px !important;  /* Reduz padding */
-        }
-        .stDataFrame tr:hover {
-            background-color: #1A3C34 !important;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
 
 # Exibir tabela na coluna principal
 with col1:
