@@ -51,10 +51,12 @@ selic_tax_rate = st.sidebar.number_input("Imposto Selic (%)", min_value=0.0, val
 
 # Cálculos
 try:
-    years_array = np.arange(max(1, years + 1))  # Garantir que years_array tenha pelo menos 1 elemento
+    years_array = np.arange(max(1, years + 1))  # Array de anos para o gráfico e tabela
+    months = max(1, years * 12)  # Total de meses para os fluxos de caixa
+    months_array = np.arange(months)  # Array de meses para cálculos mensais
 
-    # Selic: Juros compostos com imposto sobre o rendimento
-    selic_values = [initial_investment if initial_investment > 0 else 1.0]  # Evitar divisão por zero
+    # Selic: Juros compostos com imposto sobre o rendimento (mantido anual para simplificação)
+    selic_values = [initial_investment if initial_investment > 0 else 1.0]
     for i in range(1, years + 1):
         rendimento_anual = selic_values[-1] * selic_rate
         imposto_anual = rendimento_anual * selic_tax_rate
@@ -65,34 +67,56 @@ try:
     if len(selic_values) < len(years_array):
         selic_values.extend([selic_values[-1]] * (len(years_array) - len(selic_values)))
 
-    # Imóvel Fixo: Valor inicial + aluguel (sem valorização), com custos e vacância
-    rental_annual = rental_income * 12
-    vacancy_loss = vacancy_months * rental_income
-    rental_net = (rental_annual - vacancy_loss) * (1 - property_costs)
-    imovel_fixo_values = (initial_investment if initial_investment > 0 else 1.0) + rental_net * years_array
+    # Aluguel líquido mensal
+    rental_monthly = rental_income * (1 - vacancy_months / 12) * (1 - property_costs)  # Aluguel líquido mensal ajustado por vacância e custos
 
-    # Imóvel Valorizado: Valorização do imóvel + aluguel, com custos e vacância
-    imovel_valorizado_values = (initial_investment if initial_investment > 0 else 1.0) * (1 + property_appreciation) ** years_array + rental_net * years_array
+    # Imóvel Fixo: Valor inicial + aluguel (sem valorização), acumulado anualmente para o gráfico
+    imovel_fixo_values = [(initial_investment if initial_investment > 0 else 1.0)]
+    for i in range(1, len(years_array)):
+        aluguel_acumulado = rental_monthly * 12 * i  # Acumula o aluguel mensal ao longo dos anos
+        imovel_fixo_values.append((initial_investment if initial_investment > 0 else 1.0) + aluguel_acumulado)
 
-    # Calcular ganho de capital apenas para o cenário "Imóvel Valorizado"
+    # Imóvel Valorizado: Valorização do imóvel + aluguel, acumulado anualmente para o gráfico
+    imovel_valorizado_values = [(initial_investment if initial_investment > 0 else 1.0)]
+    for i in range(1, len(years_array)):
+        valor_imovel = (initial_investment if initial_investment > 0 else 1.0) * (1 + property_appreciation) ** i
+        aluguel_acumulado = rental_monthly * 12 * i
+        imovel_valorizado_values.append(valor_imovel + aluguel_acumulado)
+
+    # Calcular ganho de capital apenas para o cenário "Imóvel Valorizado" (aplicado no último ano)
     if years > 0:
         capital_gain = imovel_valorizado_values[-1] - (initial_investment if initial_investment > 0 else 1.0)
         capital_gains_tax_amount = capital_gain * capital_gains_tax
         imovel_valorizado_values[-1] -= capital_gains_tax_amount
 
-    # Calcular TIR para Selic
+    # Calcular TIR para Selic (mantido com fluxos anuais para simplificação)
     selic_cash_flows = [-(initial_investment if initial_investment > 0 else 1.0)] + [0] * (years - 1) + [selic_values[-1]] if years > 0 else [0]
     selic_tir = npf.irr(selic_cash_flows) * 100 if years > 0 and npf.irr(selic_cash_flows) is not None else 0
 
-    # Calcular TIR para Imóvel Fixo
-    imovel_fixo_cash_flows = [-(initial_investment if initial_investment > 0 else 1.0)] + [rental_net] * (years - 1) + [rental_net + (initial_investment if initial_investment > 0 else 1.0)] if years > 0 else [0]
-    imovel_fixo_tir = npf.irr(imovel_fixo_cash_flows) * 100 if years > 0 and npf.irr(imovel_fixo_cash_flows) is not None else 0
+    # Calcular TIR para Imóvel Fixo com fluxos mensais
+    imovel_fixo_cash_flows = [-(initial_investment if initial_investment > 0 else 1.0)]
+    for m in range(1, months):
+        imovel_fixo_cash_flows.append(rental_monthly)  # Fluxo mensal de aluguel
+    imovel_fixo_cash_flows.append(rental_monthly + (initial_investment if initial_investment > 0 else 1.0))  # Último mês inclui o valor inicial do imóvel
+    imovel_fixo_tir_mensal = npf.irr(imovel_fixo_cash_flows) if len(imovel_fixo_cash_flows) > 1 and npf.irr(imovel_fixo_cash_flows) is not None else 0
+    imovel_fixo_tir = ((1 + imovel_fixo_tir_mensal) ** 12 - 1) * 100  # Anualizar a TIR mensal
 
-    # Calcular TIR para Imóvel Valorizado
-    imovel_valorizado_cash_flows = [-(initial_investment if initial_investment > 0 else 1.0)] + [rental_net] * (years - 1) + [rental_net + imovel_valorizado_values[-1]] if years > 0 else [0]
-    imovel_valorizado_tir = npf.irr(imovel_valorizado_cash_flows) * 100 if years > 0 and npf.irr(imovel_valorizado_cash_flows) is not None else 0
+    # Calcular TIR para Imóvel Valorizado com fluxos mensais
+    imovel_valorizado_cash_flows = [-(initial_investment if initial_investment > 0 else 1.0)]
+    property_appreciation_monthly = (1 + property_appreciation) ** (1/12) - 1  # Taxa mensal de valorização
+    valor_imovel = initial_investment if initial_investment > 0 else 1.0
+    for m in range(1, months):
+        valor_imovel *= (1 + property_appreciation_monthly)  # Valorização mensal do imóvel
+        imovel_valorizado_cash_flows.append(rental_monthly)  # Fluxo mensal de aluguel
+    # Último mês: aluguel + valor final do imóvel (com imposto sobre ganho de capital)
+    capital_gain = valor_imovel - (initial_investment if initial_investment > 0 else 1.0)
+    capital_gains_tax_amount = capital_gain * capital_gains_tax
+    valor_final = valor_imovel - capital_gains_tax_amount
+    imovel_valorizado_cash_flows.append(rental_monthly + valor_final)
+    imovel_valorizado_tir_mensal = npf.irr(imovel_valorizado_cash_flows) if len(imovel_valorizado_cash_flows) > 1 and npf.irr(imovel_valorizado_cash_flows) is not None else 0
+    imovel_valorizado_tir = ((1 + imovel_valorizado_tir_mensal) ** 12 - 1) * 100  # Anualizar a TIR mensal
 
-    # Criar DataFrame para tabela
+    # Criar DataFrame para tabela (mantido anual para exibição)
     df = pd.DataFrame({
         "Ano": years_array,
         "Selic (R$)": selic_values,
@@ -100,7 +124,7 @@ try:
         "Imóvel Valorizado (R$)": imovel_valorizado_values
     })
 
-    # Criar gráfico
+    # Criar gráfico (mantido anual para exibição)
     fig = plt.figure(figsize=(12, 6))
     ax = fig.add_subplot(111)
     ax.plot(years_array, selic_values, label=f'Selic ({selic_rate*100:.2f}% a.a.)', marker='o')
